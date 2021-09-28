@@ -69,7 +69,7 @@
 
     function buildList() {
         var wrapper = document.getElementById('list-wrapper')
-        var url = 'http://127.0.0.1:8000/todo/api/task-list/'
+        var url = 'http://127.0.0.1:8000/todo/api/task-list'
         fetch(url)
             .then((resp) => resp.json())
             .then(function (data) {
@@ -155,9 +155,9 @@
     form.addEventListener('submit', function (e) {
         e.preventDefault()
         // console.log('Form submitted')
-        var url = 'http://127.0.0.1:8000/todo/api/task-create/'
+        var url = 'http://127.0.0.1:8000/todo/api/task-list/'
         if (activeItem != null) {
-            var url = `http://127.0.0.1:8000/todo/api/task-update/${activeItem.id}/`
+            var url = `http://127.0.0.1:8000/todo/api/task-detail/${activeItem.id}/`
             activeItem = null
             document.getElementById('submit').textContent = "Add"
         }
@@ -193,7 +193,7 @@
 
     function deleteItem(item) {
         // console.log('Delete clicked')
-        fetch(`http://127.0.0.1:8000/todo/api/task-delete/${item.id}/`, {
+        fetch(`http://127.0.0.1:8000/todo/api/task-detail/${item.id}/`, {
             method: 'DELETE',
             headers: {
                 'Content-type': 'application/json',
@@ -205,10 +205,10 @@
     }
 
     function strikeUnstrike(item) {
-        console.log('Strike clicked')
+        // console.log('Strike clicked')
 
         item.completed = !item.completed
-        fetch(`http://127.0.0.1:8000/todo/api/task-update/${item.id}/`, {
+        fetch(`http://127.0.0.1:8000/todo/api/task-detail/${item.id}/`, {
             method: 'POST',
             headers: {
                 'Content-type': 'application/json',

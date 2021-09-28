@@ -1,13 +1,13 @@
-from django.urls import path
-from . import views
+# todo/api/urls.py : API urls.py
+from django.conf.urls import url
+from django.urls import path, include
 
-app_name = "api"
+from .views import (
+    TodoListApiView,
+    TodoDetailApiView
+)
 
 urlpatterns = [
-    path("", views.apiOverview, name="api-overview"),
-    path("task-list/", views.taskList, name="task-list"),
-    path("task-create/", views.taskList, name="task-create"),
-    path("task-detail/<str:pk>/", views.taskDetail, name="task-detail"),
-    path("task-update/<str:pk>/", views.taskDetail, name="task-update"),
-    path("task-delete/<str:pk>/", views.taskDetail, name="task-delete"),
+    path('task-list/', TodoListApiView.as_view(),name="task_list"),
+    path('task-detail/<int:todo_id>/', TodoDetailApiView.as_view(),name="task_detail"),
 ]

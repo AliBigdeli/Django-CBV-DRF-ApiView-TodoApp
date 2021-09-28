@@ -1,76 +1,105 @@
-from django.shortcuts import get_object_or_404
-from django.http import JsonResponse
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+# todo/api/views.py
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-
-from .serializers import TaskSerializer
-
 from todo.models import Task
-from django.contrib.auth.models import User
+from .serializers import TaskSerializer
+from rest_framework import permissions
+
+class TodoListApiView(APIView):
+    # add permission to check if user is authenticated
+    permission_classes = [permissions.IsAuthenticated]
 
 
-@api_view(["GET"])
-def apiOverview(request):
-    """Overview of the whole api urls"""
-    api_urls = {
-        "Login": "/accounts/api/login",
-        "Register": "/accounts/api/register",
-        "List": "/task-list/",
-        "Detail": "/api/task-detail/<str:pk>/",
-        "Create": "/api/task-create/",
-        "Update": "/api/task-update/<str:pk>/",
-        "Delete": "/api/task-delete/<str:pk>/",
-    }
-
-    return Response(api_urls)
+    def get(self, request, *args, **kwargs):
+        '''
+        List all the todo items for given requested user
+        '''
+        todos = Task.objects.filter(user = request.user.id)
+        serializer = TaskSerializer(todos, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-@permission_classes((IsAuthenticated,))
-@api_view(["GET", "POST"])
-def taskList(request):
-    """
-    ---
-    response_serializer: TaskSerializer
-    parameters:
-            - title: CharField
-
-    """
-    if request.method == "GET":
-        tasks = Task.objects.filter(user=request.user.pk).order_by("-id")
-        serializers = TaskSerializer(tasks, many=True)
-        return Response(serializers.data)
-    elif request.method == "POST":
-        serializer = TaskSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.validated_data["user"] = User.objects.get(
-                pk=request.user.id
-            )
-            serializer.save()
-            return JsonResponse(
-                serializer.data, status=status.HTTP_201_CREATED
-            )
-        return JsonResponse(
-            serializer.errors, status=status.HTTP_400_BAD_REQUEST
-        )
-
-
-@api_view(["GET", "POST", "DELETE"])
-@permission_classes((IsAuthenticated,))
-def taskDetail(request, pk):
-    task = get_object_or_404(Task, id=pk, user=request.user.pk)
-    if request.method == "GET":
-        serializers = TaskSerializer(task, many=False)
-        return Response(serializers.data)
-    elif request.method == "POST":
-        serializer = TaskSerializer(instance=task, data=request.data)
+    def post(self, request, *args, **kwargs):
+        '''
+        Create the Task with given todo data
+        '''
+        data = {
+            'title': request.data.get('title'),             
+            'user': request.user.id
+        }
+        serializer = TaskSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
-            return JsonResponse(serializer.data)
-        return JsonResponse(
-            serializer.errors, status=status.HTTP_400_BAD_REQUEST
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+class TodoDetailApiView(APIView):
+    # add permission to check if user is authenticated
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self, todo_id, user_id):
+        '''
+        Helper method to get the object with given todo_id, and user_id
+        '''
+        try:
+            return Task.objects.get(id=todo_id, user = user_id)
+        except Task.DoesNotExist:
+            return None
+
+
+    def get(self, request, todo_id, *args, **kwargs):
+        '''
+        Retrieves the Task with given todo_id
+        '''
+        todo_instance = self.get_object(todo_id, request.user.id)
+        if not todo_instance:
+            return Response(
+                {"res": "Object with todo id does not exists"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = TaskSerializer(todo_instance)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, todo_id, *args, **kwargs):
+        '''
+        Updates the todo item with given todo_id if exists
+        '''
+        todo_instance = self.get_object(todo_id, request.user.id)
+        if not todo_instance:
+            return Response(
+                {"res": "Object with todo id does not exists"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        data = {
+            'title': request.data.get('title'), 
+            'completed': request.data.get('completed'), 
+            'user': request.user.id
+        }
+        serializer = TaskSerializer(instance = todo_instance, data=data, partial = True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+    def delete(self, request, todo_id, *args, **kwargs):
+        '''
+        Deletes the todo item with given todo_id if exists
+        '''
+        todo_instance = self.get_object(todo_id, request.user.id)
+        if not todo_instance:
+            return Response(
+                {"res": "Object with todo id does not exists"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        todo_instance.delete()
+        return Response(
+            {"res": "Object deleted!"},
+            status=status.HTTP_200_OK
         )
-    elif request.method == "DELETE":
-        task.delete()
-        return JsonResponse({"detail": "Task was deleted successfully!"})
+    
